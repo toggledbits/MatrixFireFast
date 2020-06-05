@@ -97,7 +97,7 @@ The 44x11 matrix I used for development, for example, has its original at upper-
 
 But I have not provided preprocessor values for every possible arrangement of LED matrix. For example, if the pixel at address 0 is the top left pixel, but pixel 1 is the first pixel in the next *row* rather than the next *column*, I have not provided a flag for that. You'll have to work it out (e.g. if it's a square matrix, you could/should just rotate the display...). 
 
-If you need to do surgery on `pos()` to make it work with the matrix you are using and the way it is going to be installed/displayed, just make sure that it returns the index of the pixel in the bottom left corner pixel of the entire display when its input coordinate is (0,0), and the index of the next pixel to the *right* for (1,0), and the index of the pixel at (0,1) is the pixel in the same column but one row up from (0,0).
+If you need to do surgery on `pos()` to make it work with the matrix you are using and the way it is going to be installed/displayed, just make sure that it returns the index of the pixel in the bottom left corner pixel of the entire display when its input coordinate is (0,0), and the index of the next pixel to the _right_ for (1,0), and for (0,1) it must return the index of the pixel in the same column but _one row up_ from (0,0).
 
 Your `pos()` implementation should also take into account that the displayed size of the animation may be portion of the matrix, and that the position of this "subwindow" in the display has its own origin. See "Sharing the Display" below for how that works. It's only necessary to do this if you are sharing the display.
 
