@@ -9,11 +9,12 @@
 
 #include <FastLED.h>
 
-#define VERSION 20156
+#define VERSION 20157
 
-#define SERIAL
+#undef  SERIAL
 
-/* MATRIX CONFIGURATION */
+/* MATRIX CONFIGURATION - SET THESE BEFORE RUNNING THE TEST */
+
 #define MAT_TYPE    NEOPIXEL    /* Matrix LED type; see FastLED docs for others */
 #define MAT_W       44          /* Size (columns) of entire matrix */
 #define MAT_H       11          /* and rows */
@@ -24,11 +25,13 @@
 #endif
 
 #undef  BRIGHTNESS_TEST         /* Change "undef" to "define" to show test patterns at startup */
-#define BRIGHT      64          /* brightness; min 0 - 255 max -- high brightness requires a hefty power supply! Start low! */
+#define BRIGHT      32          /* brightness; min 0 - 255 max -- high brightness requires a hefty power supply! Start low! */
+
+/* END OF CONFIGURATION SECTION */
 
 CRGB matrix[MAT_H * MAT_W];
-const uint8_t step;
-const uint32_t colors = [
+uint8_t step;
+const uint32_t colors[] = {
     0xff0000,
     0x00ff00,
     0x0000ff,
@@ -37,14 +40,7 @@ const uint32_t colors = [
     0x00ffff,
     0xff8000,
     0xffffff
-];
-
-const char *NL = "\n";
-void say(m) {
-#ifdef SERIAL
-    Serial.print(m);
-#endif
-}
+};
 
 void setup() {
   FastLED.addLeds<MAT_TYPE, MAT_PIN>(matrix, MAT_W * MAT_H);
@@ -53,12 +49,14 @@ void setup() {
 
 #ifdef SERIAL
   Serial.begin(115200); while (!Serial) { ; }
-  say("PixelTest v"); say(VERSION); say(NL);
-  say("Dimensions: "); say(MAT_W); say("w x "); say(MAT_H); say("h"); say(NL);
-  say("Brightness "); say(BRIGHT); say(NL);
+  Serial.println();
+  Serial.print("PixelTest v"); Serial.println(VERSION);
+  Serial.print("Dimensions: "); Serial.print(MAT_W); Serial.print("w x "); Serial.print(MAT_H); Serial.println("h");
+  Serial.print("Brightness "); Serial.println(BRIGHT);
 #endif
 
   step = 1;
+  randomSeed(millis());
 }
 
 void loop() {
@@ -67,8 +65,8 @@ void loop() {
   if ( step == 1 ) {
     // Origin test; light pixel 0 only for 15 seconds, which exposes where the origin
     // of the display is located.
-    say("Origin"); say(NL);
-    for ( uint8_t i=0; i<15; ++i ) {
+    Serial.println("Origin");
+    for ( uint8_t i=0; i<5; ++i ) {
       matrix[0] = 0xffffff;
       FastLED.show();
       delay(500);
@@ -80,46 +78,56 @@ void loop() {
     // Row test; light first MAT_W pixels, which shows the procession of pixels. We want
     // a horizontal line the full width of the matrix (row-major ordering). If line is
     // vertical (and possibly appears in more than one column), it's column-major.
-    say("Horizontal line"); say(NL);
+    Serial.println("Horizontal line");
     for (uint8_t i=0; i<MAT_W; ++i) {
       matrix[i] = colors[i%8];
     }
     FastLED.show();
-    delay(15000);
+    delay(5000);
   } else if ( step == 3 ) {
     // Bouncing ball test; should bounce up/down in straight line, no left/right shifting.
     // If there's a left-right shift to the opposite side of the display, then it's zig-zag.
-    say("Bouncing ball"); say(NL);
-    for ( uint8_t i=0; i<3 ++i ) {
+    Serial.println("Bouncing ball");
+    for ( uint8_t i=0; i<3; ++i ) {
       for ( uint8_t j=0; j<MAT_H; ++j ) {
         matrix[j*MAT_W] = 0xffffff;
         FastLED.show();
-        delay(50);
+        delay(150);
         matrix[j*MAT_W] = 0;
       }
       for ( uint8_t j=2; j<MAT_H; ++j ) {
         matrix[(MAT_H-j)*MAT_W] = 0xffffff;
         FastLED.show();
-        delay(50);
+        delay(150);
         matrix[(MAT_H-j)*MAT_W] = 0;
       }
-    } else if ( step == 4 ) {
+    }
+  } else if ( step == 4 ) {
       // Brightness test, for measure worst-case current draw of matrix.
 #ifdef BRIGHTNESS_TEST
-      say("Brightness"); say(NL);
+      Serial.println("Brightness");
       FastLED.setBrightness(BRIGHT);
-      for ( uint8_t i=0; i<MAT_H*MAT_W; ++i ) {
+      for ( uint16_t i=0; i<MAT_H*MAT_W; ++i ) {
         matrix[i] = 0xffffff;
       }
       FastLED.show();
       delay(30000);
 #endif
-    } else {
-      say("End of test cycle"); say(NL);
+  } else if ( step == 5 ) {
+    Serial.println("Sparkle!");
+    unsigned long tend = millis() + 5000;
+    while ( millis() < tend ) {
+      uint16_t k = random(0, MAT_W*MAT_H);
+      matrix[k] = 0xffffff;
+      FastLED.show();
+      delay(15);
+      matrix[k] = 0;
+    }
+  } else {
+      Serial.print("End of test cycle"); Serial.println();
       FastLED.show();
       delay(1000);
       step = 0;
-    }
-    ++step;
   }
+    ++step;
 }

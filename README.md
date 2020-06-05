@@ -129,7 +129,7 @@ PixelTest will then try to bounce a single pixel up and down in a single column.
 
 If you enabled the brightness test, PixelTest will now turn on all LEDs at your configured brightness (`BRIGHT`) and hold for 30 seconds. This will allow you to measure the maximum draw on your power supply with that brightness. If you have USB-powered your matrix through the microprocessor, and you have a large matrix, there's a good chance it will crash at this point. Don't use USB as a power supply; you need something more.
 
-PixelTest will then start another test cycle.
+PixelTest will then do a few seconds of "random sparkles" and start another test cycle.
 
 > NOTE: If you get no display at all, check all of the following: you are wired to the correct data pin; your matrix is powered correctly; check your configuration.
 
