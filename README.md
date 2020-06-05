@@ -2,9 +2,9 @@
 
 Just on a whim, I decided to make my own fire simulation using a 44x11 WS2812 matrix I had purchased on Amazon. There's plenty of code available to do this, but I just wanted to figure out for myself how to code a nice-looking animation. So I ignored all of those other implementations, and just set about failing repeatedly... until I didn't.
 
-The result is MatrixFireFast. You can see it [here on YouTube](https://#).
+The result is MatrixFireFast. It works on any LED matrix supported by [FastLED](http://fastled.io/). You can see it [here on YouTube](#).
 
-I started development with an Arduino Uno and the Adafruit NeoMatrix libarary, and that worked fine as long as I kept the display size down. The Uno's RAM topped out at about 11x12, meaning I was using less than 1/4th of the entire matrix width available. So when things started to look like they were going to work well, I dug out a Mega 2560, which had enough RAM to contain the entire display. But it was still not refreshing fast enough for my taste, so I moved off the Adafruit libraries to FastLED. That worked famously, so after some tweaking and a couple of hours playing with it on both Arduino and a NodeMCU/ESP8266, I was satisfied (for the moment).
+I started development with an Arduino Uno and the Adafruit NeoMatrix libarary, and that worked fine as long as I kept the display size down. The Uno's RAM topped out at about 11x12, meaning I was using less than 1/4th of the entire matrix width available. So when things started to look like they were going to work well, I dug out a Mega 2560, which had enough RAM to manage the entire 44x11 display. But it was still not refreshing quite fast enough for my taste, so I moved off the Adafruit libraries to FastLED. That worked famously, so after some tweaking and a couple of hours playing with it on both Arduino and a NodeMCU/ESP8266, I was satisfied (for the moment).
 
 The simulation does what I think pretty much everyone does at the most basic level: establishes "heat" near the bottom of the display and percolates it up, reducing the heat as you go. To simulate the licking flames of fire, I added random "flares" in the fire that rise from the bottom of the display, and also radiate outward, which I think is really the thing that most improves the effect.
 
@@ -20,11 +20,13 @@ As it stands today, I have tested it on:
 
 If you get it running in a different configuration, please let me know! Also, see "Matrix Size and Processor Selection" below for more information.
 
-Also note that FastLED is a really fast libarary for sending pixels out to LED strings (kudos!), but it's not a matrix library. It views the matrix as it is *electrically* &mdash; a linear arrangement of LEDs. In order to map the rectangular physical arrangement of LEDs into their linear electrical implementation, the function `pos()` is used extensively. It maps a "canonical" column and row address to a linear pixel address. You will only need to customize `pos()` if the configuration switches provided don't adequately cover your matrix's pixel arrangement. See "Customizing the `pos()` Function" below for more details about this. 
+> Tip: I think the simulation also looks really good on a long one-pixel wide linear string of LEDs.
+
+Also note that FastLED is a really fast libarary for sending pixels out to LED strings (kudos!), but it's not a matrix library. It views a matrix as it is *electrically* &mdash; a linear arrangement of LEDs. In order to map the rectangular physical arrangement of LEDs into their linear electrical implementation, the function `pos()` is used extensively. It maps a "canonical" column and row address to a linear pixel address. The included implementation of `pos()` uses several preprocessor macros in the attempt to support the most common arrangements. You will only need to customize `pos()` if the configuration switches provided don't adequately cover your matrix's pixel arrangement. See "Customizing the `pos()` Function" below for more details about this. 
 
 ## Matrix Size and Processor Selection
 
-So far, the ESP8266 clearly wins for RAM and processor speed, among the devices I've tested with. High frame rates (too high to be realistic, I think) are easy, and I haven't yet probed the limits of display size. The form factor is also much better. If you were going to choose a processor for a semi-permanent installation, I would definitely go with the ESP8266. Just be aware that you may need a level shifter, as your ESP8266 is a 3.3V device, and the higher voltage on the matrix may not be compatible, and could in fact, damage the microprocessor if you hook it up incorrectly.
+So far, the ESP8266 clearly wins for RAM and processor speed from among the devices I've tested with. High frame rates (too high to be realistic, I think) are easy, and I haven't yet probed the limits of display size. The form factor is also much better. If you were going to choose a processor for a semi-permanent installation, I would definitely go with the ESP8266. Just be aware that level shifting may be required, as the ESP is a 3.3V device, and the voltage of the matrix may not be compatible, and could in fact, damage the microprocessor if you hook it up incorrectly.
 
 As of this writing, the RAM requirement is basically a baseline of 180 bytes (without other libraries, including Serial), plus four bytes per pixel (i.e. at least `width * height * 4 + 180` bytes). Using the full size of my 484 pixel 44x11 matrix, the RAM requirement is just over 2K (hence the need for the Arduino Mega 2560). A 32x8 display squeezes into an Uno. Increasing or decreasing either the number of possible flares or the number of displayed colors slightly modifies the baseline 180-byte requirement but is not a significant contributor. The matrix is the greedy consumer.
 
@@ -40,7 +42,7 @@ The most basic thing you need to do is configure the size of the display you are
 
 Note: If you are using an ESP8266, you may need to use a level shifter. ESP8266 is a 3.3V device, and presenting voltages much higher may damage the microprocessor. The 3.3V data output signal may also be insufficient to be recognized as data by your LED matrix. As it happened, the 5V 44x11 matrix I used worked fine without a level shifter--it's data line is high impedence (presents no voltage, just accepts whatever the processor gives it), and senses edges fine at the 3.3V level.
 
-You also need to know a little bit about your matrix. In a pixel matrix, although you are looking at a rectangular arrangement, electrically the pixels are linear. That is, if you have a 16x16 matrix, you have 256 pixels arranged from 0 to 255. Depending on the manufacturer, pixel 0 can be in any corner (and hopefully nowhere else but one of the four corners, because that would just be weird). Pixel 1 then, depending on where pixel 0 is, could be to the left or right, above or below. You need to work out the order of the pixels in your display. If you don't know, and the documentation for the matrix doesn't tell you, or your dog ate it, or whatever, you can run the pixel test program included in the distribution to determine it. See "Using PixelTest" below.
+You also need to know a little bit about your matrix. In a pixel matrix, although you are looking at a rectangular arrangement, electrically the pixels are linear. That is, if you have a 16x16 matrix, you have 256 pixels numbered from 0 to 255. Depending on the manufacturer, pixel 0 can be in any corner (and hopefully nowhere else but one of the four corners, because that would just be weird). Pixel 1 then, depending on where pixel 0 is, could be to the left or right, above or below. You need to work out the order of the pixels in your display. If you don't know, and the documentation for the matrix doesn't tell you, or your dog ate it, or whatever, you can run the pixel test program included in the distribution to determine it. See "Using PixelTest" below.
 
 If your display has pixel 0 in the top row, either at the left or right, make sure `MAT_TOP` is *define*d. If pixel 0 is in the bottom row, then `MAT_TOP` must be *undef*ined.
 
@@ -103,6 +105,28 @@ It is possible for the fire simulation to share a large matrix with other displa
 * `xorg` and `yorg` - Default 0, 0 respectively; the origin of the sub-display, offset from canonical (0,0) (bottom left corner).
 
 Anything else you need to display with the fire simulation you can now set yourself directly into the `matrix` array. This array is `MAT_W * MAT_H` pixels long &mdash; the entire matrix. Whatever you do to the array, calling `FastLED.show()` will display it. In your program's `loop()` function, just call `make_fire()` either before or after all your other work to set your pixels. Make sure you call `make_fire()` often enough to uphold the configured refresh rate in the `FPS` constant.
+
+## Using PixelTest
+
+PixelTest is a simple sketch that lights every pixel in the matrix one at a time. By watching how the pixel "moves", you can determine the arrangement of the display and get MatrixFireFast configured correctly.
+
+Before you run PixelTest, you will need to set the matrix data pin and its width and height in the same manner as described for MatrixFireFast in "Basic Configuration" above.
+
+If you are using a separate (non-USB) power supply, you may also want to turn on `BRIGHTNESS_TEST` and set `BRIGHT` (0-255) as well. If enabled, the brightness test will allow you to measure the worst-case current draw of your matrix at full brightness with all pixels on (and white). Since this test can crash a USB-powered matrix configuration, it is normally disabled in the distribution. A good way to do this is to simply use a good-quality bench power supply, as these usually display their load. This test also allows you to try out various values for `BRIGHT` to see what you might want to use in MatrixFireFast.
+
+Make sure the matrix is in the orientation in which you want to install it before starting the test.
+
+PixelTest will begin by blinking the first pixel, the "origin" pixel 0, for 15 seconds. If pixel 0 is anywhere in the *top* row of the matrix, you need to *define* `MAT_TOP` in MatrixFireFast (e.g. `#define MAT_TOP`). Otherwise, undefine it (e.g. `#undef MAT_TOP`). If pixel 0 is on the *left* edge of the matrix, you should *define* `MAT_LEFT`; otherwise, undefine it.
+
+PixelTest will next turn on the remaining pixels in the row. If the matrix displays a _horizontal line of pixels at the top or bottom edge_, proceed to the next step. Otherwise, you are mostly likely to see a vertical column of pixels lit, possibly more than one (and possibly a fractional column). In this case, the display is arranged in column-major order. If that's the case, the easiest thing to do is to install the display turned 90 degrees to the left or right (re-run the test and set the preprocessor macros according to those results). Alternately, you could write a custom `pos()` function.
+
+PixelTest will then try to bounce a single pixel up and down in a single column. The "ball" should move straight up and down in the same column, without changing columns as it ascends or descends. If the pixel jumps from left to right while moving up and down, you should define `MAT_ZIGZAG` in MatrixFireFast; otherwise (it keeps a single straight line), undefine it.
+
+If you enabled the brightness test, PixelTest will now turn on all LEDs at full brightness and hold for 30 seconds. This will allow you to measure the maximum draw on your power supply. If you have USB-powered your matrix through the microprocessor, and you have a large matrix, there's a good chance it will crash at this point. Don't use USB as a power supply; you need something more.
+
+PixelTest will then restart.
+
+> NOTE: If you get no display at all, you likely have the wrong data pin, it's not connected correctly, or another configuration problem. Both PixelTest and MatrixFireFast are coded for a NeoPixel matrix by default. Find the `FastLED.addLeds()` call in the code and change the `NEOPIXEL` keyword to the one that best matches your matrix configuration (see the [FastLED documentation](https://github.com/FastLED/FastLED/wiki/Overview) for supported LEDs and their respective keywords).
 
 ## Donations
 
