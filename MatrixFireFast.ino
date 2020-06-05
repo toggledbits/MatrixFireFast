@@ -4,67 +4,11 @@
  * 
  * Author: Patrick Rigney (https://www.toggledbits.com/)
  * Copyright 2020 Patrick H. Rigney, All Rights Reserved.
- * Free to use for non-commercial works.
+ * Github: https://github.com/toggledbits/MatrixFireFast
  * Please donate in support of my projects: https://www.toggledbits.com/donate
  * 
- * Hardware used: Arduino Mega 2560 + 44x11 NeoPixel matrix. See
- *                further comments below.
- *
- * The approach is straight-forward. A map is kept of "heat" locations that
- * overlays the display. Each refresh cycle, each pixel is "cooled" by one
- * step and moved up a row toward the top of the display. A random "burn"
- * is done in the bottom row of the display, with new heat values set within
- * a small range of all but the hottest values. Occasionally, a "flare" will
- * be set of in the bottom rows, which causes a large radiating heat spike.
- * This simulates the large licking flames observed in fire.
- *
- * I developed this using a C3 44x11 LED matrix panel. Currently, it eats a
- * good bit of RAM, so the larger-RAM 'duinos are required (this was written 
- * and tested on a Mega 2560). Other than RAM, it doesn't need much, so 
- * theoretically it should run well on a Zero, for example. Memory requirement 
- * as of this writing is about 180 bytes plus four bytes per pixel. It will
- * run on an Uno (that's what I started with) if you have a small display;
- * I've tested it up to 32x8 and it's a tight fit, but it works.
- * 
- * It also works very nicely on an ESP8266/NodeMCU. The fast processor allows
- * for really high refresh rates, and the larger RAM makes using a larger
- * matrix possible. The form factor is also more pleasant. This is what I 
- * recommend if you are going to do a semi-permanently-installed project.
- * 
- * I did the original development on an Arduino Uno with Adafruit_NeoMatrix.
- * The Uno's RAM topped out at about 11x12 on the display, and the refresh
- * rate wasn't high enough. This version uses FastLED to improve the refresh
- * rate. The Adafruit library was taking care of matrix construction issues
- * (i.e. how the sequential order of pixels maps to the cartesian system of
- * the display, tiling of display modules, etc.) but FastLED does not do this. 
- * So, the pos() function maps a (col,row) coordinate to an ordinal pixel in 
- * the LED string. The matrix display I used has its origin in the upper-left 
- * corner, and rows "zig-zag" (the first row is left-to-right, but the next 
- * right-to-left, then back to left-to-right, and so on). I've preemptively 
- * added a few macros to start supporting the other possible display 
- * constructions, but it's only scratching the surface so far. But FastLED 
- * gives a great refresh rate even for the large 484 pixel size of the 44x11 
- * display, and you may see in the YouTube video, the effect is pretty good. 
- * At least, I'm happy with it.
- * 
- * If you are powering the Arduino from USB and you run a large display at
- * high brightness, you will likely swamp the supply and crash the system due
- * to voltage drop. MAKE SURE YOU USE AN ADEQUATELY-SIZED POWER SUPPLY! I
- * recommend you run at low brightness first, and only increase brightness
- * after you've connected your larger power supply. Remember to tie the
- * grounds of your power supply output, display, and the Arduino together or 
- * you're going to have a bad time. If you're using a 3.3V system, you may 
- * need to use a level shifter/isolator.
- * 
- * The maximum refresh rate is a function of the processor speed and the 
- * number of pixels in the display. Because serial communication is used to
- * update the matrix, you can't refresh any faster than it takes to send the
- * entire frame (plus overhead). A WS2812 (NeoPixel) takes about 30us per LED,
- * so a 100 pixel string takes 3000us or 3ms to transmit, and interrupts are
- * disabled during that time, so beware! Your serial port data and other
- * operations can be affected by this.
- *
- * There are several knobs you can turn for configuration. See below.
+ * For configuration information and processor selection, please see
+ * the README file at the above Github link.
  */
 
 #include <FastLED.h>
@@ -73,27 +17,32 @@
 
 #define DISPLAY_TEST  /* define to show test patterns at startup */
 
-/* MATRIX CONFIGURATION */
-#define MAT_W 44    /* Size (columns) of entire matrix */
-#define MAT_H 11    /* and rows */
-#ifdef ESP8266
-#define MAT_PIN 0   /* Data for matrix on D3 on ESP8266 */
-#else
-#define MAT_PIN 6   /* Data for matrix on pin 6 for Arduino/other */
-#endif
-#define MAT_TOP     /* define if matrix 0,0 is in top row of display; undef if bottom */
-#define MAT_LEFT    /* define if matrix 0,0 is on left edge of display; undef if right */
-#define MAT_ZIGZAG  /* define if matrix rows zig-zag ---> <--- ---> <---; undef if scanning ---> ---> ---> */
+/* MATRIX CONFIGURATION -- PLEASE SEE THE README (GITHUB LINK ABOVE) */
 
-#define BRIGHT 32   /* brightness; min 0 - 255 max -- high brightness requires a hefty power supply! Start low! */
-#define FPS 15      /* Refresh rate */
+#define MAT_TYPE NEOPIXEL   /* Matrix LED type; see FastLED docs for others */
+#define MAT_W   44          /* Size (columns) of entire matrix */
+#define MAT_H   11          /* and rows */
+#ifdef ESP8266
+#define MAT_PIN 0           /* Data for matrix on D3 on ESP8266 */
+#else
+#define MAT_PIN 6           /* Data for matrix on pin 6 for Arduino/other */
+#endif
+#define MAT_TOP             /* define if matrix 0,0 is in top row of display; undef if bottom */
+#define MAT_LEFT            /* define if matrix 0,0 is on left edge of display; undef if right */
+#define MAT_ZIGZAG          /* define if matrix rows zig-zag ---> <--- ---> <---; undef if scanning ---> ---> ---> */
+
+#define BRIGHT 64           /* brightness; min 0 - 255 max -- high brightness requires a hefty power supply! Start low! */
+#define FPS 15              /* Refresh rate */
 
 /* DEBUG CONFIGURATION */
-#undef  SERIAL      /* Serial slows things down; don't leave it on. */
+
+#undef  SERIAL              /* Serial slows things down; don't leave it on. */
+
+/* SECONDARY CONFIGURATION */
 
 /* Display size; can be smaller than matrix size, and if so, you can move the origin.
  * This allows you to have a small fire display on a large matrix sharing the display
- * with other stuff. */
+ * with other stuff. See README at Github. */
 const uint8_t rows = MAT_H;
 const uint8_t cols = MAT_W;
 const uint8_t xorg = 0;
@@ -123,7 +72,6 @@ const uint8_t NCOLORS = (sizeof(colors)/sizeof(colors[0]));
 
 uint8_t pix[rows][cols];
 CRGB matrix[MAT_H * MAT_W];
-
 uint8_t nflare = 0;
 uint16_t flare[maxflare];
 
@@ -253,7 +201,7 @@ void make_fire() {
 }
 
 void setup() {
-  FastLED.addLeds<NEOPIXEL, MAT_PIN>(matrix, MAT_W * MAT_H);
+  FastLED.addLeds<MAT_TYPE, MAT_PIN>(matrix, MAT_W * MAT_H);
   FastLED.setBrightness(BRIGHT);
   FastLED.clear();
   FastLED.show();
@@ -266,7 +214,7 @@ void setup() {
   }
 
 #ifdef SERIAL
-    Serial.begin(115200); while (!Serial) { ; }
+    Serial.begin(115200); while (!Serial);
     Serial.print("MatrixFireFast v"); Serial.println(VERSION);
     Serial.print("Brightness "); Serial.print(BRIGHT);
     Serial.print(", FPS "); Serial.println(FPS);

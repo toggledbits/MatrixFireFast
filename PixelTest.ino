@@ -14,21 +14,19 @@
 #define SERIAL
 
 /* MATRIX CONFIGURATION */
-#define MATRIX_TYPE NEOPIXEL
-#define MAT_W 44    /* Size (columns) of entire matrix */
-#define MAT_H 11    /* and rows */
+#define MAT_TYPE    NEOPIXEL    /* Matrix LED type; see FastLED docs for others */
+#define MAT_W       44          /* Size (columns) of entire matrix */
+#define MAT_H       11          /* and rows */
 #ifdef ESP8266
-#define MAT_PIN 0   /* Data for matrix on D3 on ESP8266 */
+#define MAT_PIN     0           /* Data for matrix on D3 on ESP8266 */
 #else
-#define MAT_PIN 6   /* Data for matrix on pin 6 for Arduino/other */
+#define MAT_PIN     6           /* Data for matrix on pin 6 for Arduino/other */
 #endif
 
-#undef BRIGHTNESS_TEST  /* define to show test patterns at startup */
-#define BRIGHT 32   /* brightness; min 0 - 255 max -- high brightness requires a hefty power supply! Start low! */
+#undef  BRIGHTNESS_TEST         /* Change "undef" to "define" to show test patterns at startup */
+#define BRIGHT      64          /* brightness; min 0 - 255 max -- high brightness requires a hefty power supply! Start low! */
 
 CRGB matrix[MAT_H * MAT_W];
-
-const unsigned long tick;
 const uint8_t step;
 const uint32_t colors = [
     0xff0000,
@@ -49,8 +47,7 @@ void say(m) {
 }
 
 void setup() {
-  FastLED.addLeds<MATRIX_TYPE, MAT_PIN>(matrix, MAT_W * MAT_H);
-  FastLED.setBrightness(BRIGHT);
+  FastLED.addLeds<MAT_TYPE, MAT_PIN>(matrix, MAT_W * MAT_H);
   FastLED.clear();
   FastLED.show();
 
@@ -62,11 +59,11 @@ void setup() {
 #endif
 
   step = 1;
-  tick = millis();
 }
 
 void loop() {
   FastLED.clear();
+  FastLED.setBrightness(64); // default test brightness
   if ( step == 1 ) {
     // Origin test; light pixel 0 only for 15 seconds, which exposes where the origin
     // of the display is located.

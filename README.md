@@ -32,6 +32,8 @@ As of this writing, the RAM requirement is basically a baseline of 180 bytes (wi
 
 > Note: I've made attempts to reduce this requirement to three bytes per pixel (just what FastLED requires), but thus far my attempts have increased code complexity and reduced performance, and the exchange isn't worth it, IMO. RAM is cheap.
 
+Another thing to be aware of is that the refresh rate will be limited by the size of the display and the type of LEDs. For NeoPixels, for example, there are strict timing requirements for data transmission and it takes about 30&micro;s per pixel. So 100 pixels takes the library 3ms to update. During this time, FastLED must disable interrupts, so anything else going on is going to be delayed accordingly. My 44x11 test matrix, with 484 pixels, takes 14.52ms to transmit to the display, and therefore the theoretical limit of the frame rate is around 68 frames per second. Forunately, this is higher than what I feel looks good (for this display, something in the low 20s is most pleasing to my eye).
+
 ## Basic Configuration
 
 The most basic thing you need to do is configure the size of the display you are using, and what data pin is used to transmit the pixel stream to the display. If you do nothing else to the code when you first try it, you have to get these right. These are set near the stop of the code:
@@ -108,25 +110,25 @@ Anything else you need to display with the fire simulation you can now set yours
 
 ## Using PixelTest
 
-PixelTest is a simple sketch that lights every pixel in the matrix one at a time. By watching how the pixel "moves", you can determine the arrangement of the display and get MatrixFireFast configured correctly.
+PixelTest is a simple sketch that displays a series of patterns meant to expose the arrangement of pixels in the matrix. By watching how the pixels display, you can determine the arrangement of the matrix and get MatrixFireFast configured correctly.
 
-Before you run PixelTest, you will need to set the matrix data pin and its width and height in the same manner as described for MatrixFireFast in "Basic Configuration" above.
+Before you run PixelTest, you will need to set (in the sketch) the matrix data pin and its width and height in the same manner as described for MatrixFireFast in "Basic Configuration" above.
 
-If you are using a separate (non-USB) power supply, you may also want to turn on `BRIGHTNESS_TEST` and set `BRIGHT` (0-255) as well. If enabled, the brightness test will allow you to measure the worst-case current draw of your matrix at full brightness with all pixels on (and white). Since this test can crash a USB-powered matrix configuration, it is normally disabled in the distribution. A good way to do this is to simply use a good-quality bench power supply, as these usually display their load. This test also allows you to try out various values for `BRIGHT` to see what you might want to use in MatrixFireFast.
+If you are using a separate (non-USB) power supply, you may also want to turn on `BRIGHTNESS_TEST` and set `BRIGHT` (0-255) as well. If enabled, the brightness test will allow you to measure the worst-case current draw of your matrix at full brightness with all pixels on (and white). Since this test can crash a USB-powered matrix configuration, it is normally disabled in the distribution. A good way to do this is to simply use a good-quality bench power supply, as these usually display the (ampere) measurement of the load. This test also allows you to try out various values for `BRIGHT` to see what you might want to use in MatrixFireFast.
 
-Make sure the matrix is in the orientation in which you want to install it before starting the test.
+> NOTE: Make sure the matrix is in the orientation in which you want to install it before starting the test. The advice in this section assumes you are looking at the matrix in the same orientation as that in which it will be installed.
 
-PixelTest will begin by blinking the first pixel, the "origin" pixel 0, for 15 seconds. If pixel 0 is anywhere in the *top* row of the matrix, you need to *define* `MAT_TOP` in MatrixFireFast (e.g. `#define MAT_TOP`). Otherwise, undefine it (e.g. `#undef MAT_TOP`). If pixel 0 is on the *left* edge of the matrix, you should *define* `MAT_LEFT`; otherwise, undefine it.
+Download the configured sketch to the micro. PixelTest will begin by blinking the first pixel, the "origin" pixel 0, for 15 seconds. If pixel 0 is anywhere in the *top* row of the matrix, you need to *define* `MAT_TOP` in MatrixFireFast (e.g. `#define MAT_TOP`). Otherwise, undefine it (e.g. `#undef MAT_TOP`). If pixel 0 is on the *left* edge of the matrix, you should *define* `MAT_LEFT`; otherwise, undefine it.
 
-PixelTest will next turn on the remaining pixels in the row. If the matrix displays a _horizontal line of pixels at the top or bottom edge_, proceed to the next step. Otherwise, you are mostly likely to see a vertical column of pixels lit, possibly more than one (and possibly a fractional column). In this case, the display is arranged in column-major order. If that's the case, the easiest thing to do is to install the display turned 90 degrees to the left or right (re-run the test and set the preprocessor macros according to those results). Alternately, you could write a custom `pos()` function.
+PixelTest will next turn on (in various colors) the remaining pixels in the row. If the matrix displays a _horizontal line of pixels at the top or bottom edge_, proceed to the next step. Otherwise, you are most likely to see one or more vertical columns of pixels lit (and possibly a partial column). In this case, the display is arranged in column-major order. If that's the case, the easiest thing to do is to install the display rotated 90 degrees clockwise or counter-clockwise. Rotate the display, reconfigure (width and height are now swapped) and re-run PixelTest, and set the preprocessor macros according to those results. Alternately, you could write a custom `pos()` function if rotating the display is not possible or practical.
 
-PixelTest will then try to bounce a single pixel up and down in a single column. The "ball" should move straight up and down in the same column, without changing columns as it ascends or descends. If the pixel jumps from left to right while moving up and down, you should define `MAT_ZIGZAG` in MatrixFireFast; otherwise (it keeps a single straight line), undefine it.
+PixelTest will then try to bounce a single pixel up and down in a single column. The "ball" should move straight up and down in the same column, without changing columns as it ascends and descends. If the pixel jumps from left to right while moving up and down, you should define `MAT_ZIGZAG` in MatrixFireFast; otherwise (it keeps a single straight line), undefine it.
 
-If you enabled the brightness test, PixelTest will now turn on all LEDs at full brightness and hold for 30 seconds. This will allow you to measure the maximum draw on your power supply. If you have USB-powered your matrix through the microprocessor, and you have a large matrix, there's a good chance it will crash at this point. Don't use USB as a power supply; you need something more.
+If you enabled the brightness test, PixelTest will now turn on all LEDs at your configured brightness (`BRIGHT`) and hold for 30 seconds. This will allow you to measure the maximum draw on your power supply with that brightness. If you have USB-powered your matrix through the microprocessor, and you have a large matrix, there's a good chance it will crash at this point. Don't use USB as a power supply; you need something more.
 
-PixelTest will then restart.
+PixelTest will then start another test cycle.
 
-> NOTE: If you get no display at all, you likely have the wrong data pin, it's not connected correctly, or another configuration problem. Both PixelTest and MatrixFireFast are coded for a NeoPixel matrix by default. Find the `FastLED.addLeds()` call in the code and change the `NEOPIXEL` keyword to the one that best matches your matrix configuration (see the [FastLED documentation](https://github.com/FastLED/FastLED/wiki/Overview) for supported LEDs and their respective keywords).
+> NOTE: If you get no display at all, you likely have the wrong data pin, it's not connected correctly, there's a power problem, or another configuration problem. Check that you are configured for the correct type of LED. Both PixelTest and MatrixFireFast are set for a NeoPixel LEDs by default. Change the `MATRIX_TYPE` macro to value that matches your matrix LED type from the [FastLED documentation](https://github.com/FastLED/FastLED/wiki/Overview). You will find the supported LED types and their respective type names.
 
 ## Donations
 
