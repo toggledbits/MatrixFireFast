@@ -1,10 +1,14 @@
 /**
  * PixelTest - A utility to help discovery the arrangement of matrix pixels.
- * 
+ *             PixelTest is part of MatrixFireFast
+ *
  * Author: Patrick Rigney (https://www.toggledbits.com/)
  * Copyright 2020 Patrick H. Rigney, All Rights Reserved.
+ *
+ * Github: https://github.com/toggledbits/MatrixFireFast
+ * License information can be found at the above Github link.
+ *
  * Please donate in support of my projects: https://www.toggledbits.com/donate
- * 
  */
 
 #include <FastLED.h>
