@@ -5,6 +5,8 @@
  * Author: Patrick Rigney (https://www.toggledbits.com/)
  * Copyright 2020 Patrick H. Rigney, All Rights Reserved.
  * Github: https://github.com/toggledbits/MatrixFireFast
+ * License information can be found at the above Github link.
+ *
  * Please donate in support of my projects: https://www.toggledbits.com/donate
  * 
  * For configuration information and processor selection, please see
@@ -13,7 +15,7 @@
 
 #include <FastLED.h>
 
-#define VERSION 20156
+#define VERSION 20157
 
 #define DISPLAY_TEST  /* define to show test patterns at startup */
 
