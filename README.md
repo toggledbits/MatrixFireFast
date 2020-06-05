@@ -32,25 +32,26 @@ As of this writing, the RAM requirement is basically a baseline of 180 bytes (wi
 
 > Note: I've made attempts to reduce this requirement to three bytes per pixel (just what FastLED requires), but thus far my attempts have increased code complexity and reduced performance, and the exchange isn't worth it, IMO. RAM is cheap.
 
-Another thing to be aware of is that the refresh rate will be limited by the size of the display and the type of LEDs. For NeoPixels, for example, there are strict timing requirements for data transmission and it takes about 30&micro;s per pixel. So 100 pixels takes the library 3ms to update. During this time, FastLED must disable interrupts, so anything else going on is going to be delayed accordingly. My 44x11 test matrix, with 484 pixels, takes 14.52ms to transmit to the display, and therefore the theoretical limit of the frame rate is around 68 frames per second. Forunately, this is higher than what I feel looks good (for this display, something in the low 20s is most pleasing to my eye).
+Another thing to be aware of is that the refresh rate will be limited by the size of the display and the type of LEDs. For NeoPixels, for example, there are strict timing requirements for data transmission and it takes about 30&micro;s per pixel. So 100 pixels takes the library 3ms to transmit. During this time, FastLED must disable interrupts, so anything else going on is going to be delayed accordingly. My 44x11 test matrix, with 484 pixels, takes 14.52ms to transmit to the display, and therefore the theoretical limit of the frame rate is around 68 frames per second. Fortunately, this is higher than what I feel looks good (for that matrix, something in the low 20s is most pleasing to my eye).
 
 ## Basic Configuration
 
 The most basic thing you need to do is configure the size of the display you are using, and what data pin is used to transmit the pixel stream to the display. If you do nothing else to the code when you first try it, you have to get these right. These are set near the stop of the code:
 
+* `MAT_TYPE` -- The type of LEDs in the matrix (default: `NEOPIXEL`; see the [FastLED docs](https://github.com/FastLED/FastLED/wiki/Overview) for other supported values);
 * `MAT_W` - Width of the matrix in pixels;
 * `MAT_H` - Height of the matrix in pixels;
 * `MAT_PIN` - The pin to use for serial pixel stream.
 
 Note: If you are using an ESP8266, you may need to use a level shifter. ESP8266 is a 3.3V device, and presenting voltages much higher may damage the microprocessor. The 3.3V data output signal may also be insufficient to be recognized as data by your LED matrix. As it happened, the 5V 44x11 matrix I used worked fine without a level shifter--it's data line is high impedence (presents no voltage, just accepts whatever the processor gives it), and senses edges fine at the 3.3V level.
 
-You also need to know a little bit about your matrix. In a pixel matrix, although you are looking at a rectangular arrangement, electrically the pixels are linear. That is, if you have a 16x16 matrix, you have 256 pixels numbered from 0 to 255. Depending on the manufacturer, pixel 0 can be in any corner (and hopefully nowhere else but one of the four corners, because that would just be weird). Pixel 1 then, depending on where pixel 0 is, could be to the left or right, above or below. You need to work out the order of the pixels in your display. If you don't know, and the documentation for the matrix doesn't tell you, or your dog ate it, or whatever, you can run the pixel test program included in the distribution to determine it. See "Using PixelTest" below.
+You also need to know a little bit about your matrix. In a pixel matrix, although you are looking at a rectangular arrangement, electrically the pixels are linear. That is, if you have a 16x16 matrix, you have 256 pixels numbered from 0 to 255. Depending on the manufacturer, pixel 0 can be in any corner (and hopefully nowhere else but one of the four corners, because that would just be weird). Pixel 1 then, depending on where pixel 0 is, could be to the left or right, above or below. You need to work out the order of the pixels in your display. If you don't know, and the documentation for the matrix doesn't tell you, or your dog ate it, or whatever, you can run the PixelTest program included in the distribution to determine it. See "Using PixelTest" below.
 
 If your display has pixel 0 in the top row, either at the left or right, make sure `MAT_TOP` is *define*d. If pixel 0 is in the bottom row, then `MAT_TOP` must be *undef*ined.
 
 If pixel 0 is on the left edge of your display, then `MAT_LEFT` must be *define*d; otherwise, it should be *undef*ined.
 
-Finally, if your pixels zig-zag, that is, if each row goes the opposite direction of the other, then `MAT_ZIGZAG` should be *define*d; otherwise, it must be *undef*ined.
+Finally, if your pixels zig-zag, that is, if each row goes the opposite direction of the previous row, then `MAT_ZIGZAG` should be *define*d; otherwise, it must be *undef*ined.
 
 ### Your First Run
 
@@ -92,7 +93,7 @@ If you need to do surgery on `pos()` to make it work with the matrix you are usi
 
 Your `pos()` implementation should also take into account that the displayed size of the animation may be portion of the matrix, and that the position of this "subwindow" in the display has its own origin. See "Sharing the Display" below for how that works.
 
-Here are the global values you may need to perform the necessary calculation:
+Here are the global constants you may need to perform the necessary calculation:
 
 * `MAT_W` and `MAT_H` - the configured pixel width and height, respectively, of the entire matrix;
 * `cols` and `rows` - the pixel width and height, respectively, of the subwindow in which the animation is displayed (defaults to `MAT_W` and `MAT_H` unless you change them);
@@ -103,7 +104,7 @@ Here are the global values you may need to perform the necessary calculation:
 It is possible for the fire simulation to share a large matrix with other displayed data. In order to do this, you need to set the following constants in the code:
 
 * `cols` - Normally this is set to `MAT_W`, the full width of the matrix. If you are using the fire as a sub-display, set this constant to the desired width (must be \<= `MAT_W`).
-* `rows` - Normally this is set to `MAT_H`, the full height of the matrix. Set this to the number of rows for your sub-display.
+* `rows` - Normally this is set to `MAT_H`, the full height of the matrix. Set this to the number of rows for your sub-display (must be \<= `MAT_H`).
 * `xorg` and `yorg` - Default 0, 0 respectively; the origin of the sub-display, offset from canonical (0,0) (bottom left corner).
 
 Anything else you need to display with the fire simulation you can now set yourself directly into the `matrix` array. This array is `MAT_W * MAT_H` pixels long &mdash; the entire matrix. Whatever you do to the array, calling `FastLED.show()` will display it. In your program's `loop()` function, just call `make_fire()` either before or after all your other work to set your pixels. Make sure you call `make_fire()` often enough to uphold the configured refresh rate in the `FPS` constant.
@@ -112,15 +113,15 @@ Anything else you need to display with the fire simulation you can now set yours
 
 PixelTest is a simple sketch that displays a series of patterns meant to expose the arrangement of pixels in the matrix. By watching how the pixels display, you can determine the arrangement of the matrix and get MatrixFireFast configured correctly.
 
-Before you run PixelTest, you will need to set (in the sketch) the matrix data pin and its width and height in the same manner as described for MatrixFireFast in "Basic Configuration" above.
+Before you run PixelTest, you will need to set (in the PixelTest sketch) the matrix data pin and its width and height in the same manner as described for MatrixFireFast in "Basic Configuration" above. Also confirm that the matrix LED type (`MAT_TYPE` is correct). The LED types supported by FastLED can be found in their [documentation](https://github.com/FastLED/FastLED/wiki/Overview).
 
 If you are using a separate (non-USB) power supply, you may also want to turn on `BRIGHTNESS_TEST` and set `BRIGHT` (0-255) as well. If enabled, the brightness test will allow you to measure the worst-case current draw of your matrix at full brightness with all pixels on (and white). Since this test can crash a USB-powered matrix configuration, it is normally disabled in the distribution. A good way to do this is to simply use a good-quality bench power supply, as these usually display the (ampere) measurement of the load. This test also allows you to try out various values for `BRIGHT` to see what you might want to use in MatrixFireFast.
 
 > NOTE: Make sure the matrix is in the orientation in which you want to install it before starting the test. The advice in this section assumes you are looking at the matrix in the same orientation as that in which it will be installed.
 
-Download the configured sketch to the micro. PixelTest will begin by blinking the first pixel, the "origin" pixel 0, for 15 seconds. If pixel 0 is anywhere in the *top* row of the matrix, you need to *define* `MAT_TOP` in MatrixFireFast (e.g. `#define MAT_TOP`). Otherwise, undefine it (e.g. `#undef MAT_TOP`). If pixel 0 is on the *left* edge of the matrix, you should *define* `MAT_LEFT`; otherwise, undefine it.
+Download the configured PixelTest sketch to the micro. PixelTest will begin by blinking the first pixel, the "origin" pixel 0, for 15 seconds. If pixel 0 is anywhere in the *top* row of the matrix, you need to *define* `MAT_TOP` in MatrixFireFast (e.g. `#define MAT_TOP`). Otherwise, undefine it (e.g. `#undef MAT_TOP`). If pixel 0 is on the *left* edge of the matrix, you should *define* `MAT_LEFT`; otherwise, undefine it.
 
-PixelTest will next turn on (in various colors) the remaining pixels in the row. If the matrix displays a _horizontal line of pixels at the top or bottom edge_, proceed to the next step. Otherwise, you are most likely to see one or more vertical columns of pixels lit (and possibly a partial column). In this case, the display is arranged in column-major order. If that's the case, the easiest thing to do is to install the display rotated 90 degrees clockwise or counter-clockwise. Rotate the display, reconfigure (width and height are now swapped) and re-run PixelTest, and set the preprocessor macros according to those results. Alternately, you could write a custom `pos()` function if rotating the display is not possible or practical.
+PixelTest will next turn on (in various colors) the remaining pixels in the row. If the matrix displays a _horizontal line of pixels at the top or bottom edge_, proceed to the next step. Otherwise, you are most likely to see one or more vertical columns of pixels lit (and possibly a partial column). In this case, the display is arranged in column-major order. If that's the case, the easiest thing to do is to install the display rotated 90 degrees clockwise or counter-clockwise. Rotate the display, reconfigure the sketch (width and height are now swapped, so you need to swap the values for `MAT_W` and `MAT_H`), upload the sketch to the micro and re-run, and then set the preprocessor macros according to those results. Alternately, you could write a custom `pos()` function if rotating the display is not possible or practical.
 
 PixelTest will then try to bounce a single pixel up and down in a single column. The "ball" should move straight up and down in the same column, without changing columns as it ascends and descends. If the pixel jumps from left to right while moving up and down, you should define `MAT_ZIGZAG` in MatrixFireFast; otherwise (it keeps a single straight line), undefine it.
 
@@ -128,7 +129,7 @@ If you enabled the brightness test, PixelTest will now turn on all LEDs at your 
 
 PixelTest will then start another test cycle.
 
-> NOTE: If you get no display at all, you likely have the wrong data pin, it's not connected correctly, there's a power problem, or another configuration problem. Check that you are configured for the correct type of LED. Both PixelTest and MatrixFireFast are set for a NeoPixel LEDs by default. Change the `MATRIX_TYPE` macro to value that matches your matrix LED type from the [FastLED documentation](https://github.com/FastLED/FastLED/wiki/Overview). You will find the supported LED types and their respective type names.
+> NOTE: If you get no display at all, check all of the following: you are wired to the correct data pin; your matrix is powered correctly; check your configuration.
 
 ## Donations
 
