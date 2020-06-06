@@ -2,7 +2,7 @@
 
 Just on a whim, I decided to make my own fire simulation using a 44x11 WS2812 matrix I had purchased on Amazon. There's plenty of code available to do this, but I just wanted to figure out for myself how to code a nice-looking animation. So I ignored all of those other implementations, and just set about failing repeatedly... until I didn't.
 
-The result is MatrixFireFast. It works on any LED matrix supported by [FastLED](http://fastled.io/). You can see it [here on YouTube](#).
+The result is MatrixFireFast. It works on any LED matrix supported by [FastLED](http://fastled.io/). You can see it [here on YouTube](https://youtu.be/KcE_DxXfV1g).
 
 I started development with an Arduino Uno and the Adafruit NeoMatrix library, and that worked fine as long as I kept the display size down. The Uno's RAM topped out at about 11x12, meaning I was using less than 1/4th of the entire matrix width available. So when things started to look like they were going to work well, I dug out a Mega 2560, which had enough RAM to manage the entire 44x11 display. But it was still not refreshing quite fast enough for my taste, so I moved off the Adafruit libraries to FastLED. That worked famously, so after some tweaking and a couple of hours playing with it on both Arduino and a NodeMCU/ESP8266, I was satisfied (for the moment).
 
@@ -138,6 +138,8 @@ If you enabled the brightness test, PixelTest will now turn on all LEDs at your 
 PixelTest will then do a few seconds of "random sparkles" and start another test cycle.
 
 > NOTE: If you get no display at all, check all of the following: you are wired to the correct data pin; your matrix is powered correctly; check your configuration.
+
+I posted an example run of [what PixelTest looks like on my 44x11 matrix up on YouTube](https://youtu.be/py8j66cxQGI). The run shows that my display's origin pixel (blinking in the first test) is in the top row, so `MAT_TOP` needs to be define. It's also on the left edge, so `MAT_LEFT` needs to be defined. In the "bouncing ball" test, you can see the "ball" moving from one edge of the display to the other, rather than just up and down in a straight line, and this indicates that `MAT_ZIGZAG` needs to be set.
 
 ## Donations
 
