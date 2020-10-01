@@ -16,7 +16,7 @@
 
 #include <FastLED.h>
 
-#define VERSION 20157
+#define VERSION 20275
 
 #define DISPLAY_TEST  /* define to show test patterns at startup */
 
@@ -33,6 +33,7 @@
 #define MAT_TOP             /* define if matrix 0,0 is in top row of display; undef if bottom */
 #define MAT_LEFT            /* define if matrix 0,0 is on left edge of display; undef if right */
 #define MAT_ZIGZAG          /* define if matrix rows zig-zag ---> <--- ---> <---; undef if scanning ---> ---> ---> */
+#define MAT_ZIGZAG_VERT     /* define if matrix cols zig-zag ↑↓↑↓↑↓ */
 
 #define BRIGHT 64           /* brightness; min 0 - 255 max -- high brightness requires a hefty power supply! Start low! */
 #define FPS 15              /* Refresh rate */
@@ -104,8 +105,15 @@ int pos( uint8_t col, uint8_t row ) {
 #elif defined(__MAT_RIGHT)
   col = MAT_W - col - 1;
 #endif
-#if defined(MAT_TOP)
-  // mirror vertical 
+#if defined(MAT_TOP) && defined(MAT_ZIGZAG_VERT)
+  if ( ( col & 1 ) == 0 ) {
+    row = MAT_H - row - 1;
+  }
+#elif defined(__MAT_BOTTOM) && defined(MAT_ZIGZAG_VERT)
+  if ( ( col & 1 ) == 1 ) {
+    row = MAT_H - row - 1;
+  }
+#elif defined(MAT_TOP)
   row = MAT_H - row - 1;
 #endif
   return (int) col + (int) row * (int) MAT_W;

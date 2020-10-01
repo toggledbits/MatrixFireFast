@@ -53,7 +53,9 @@ If your display has pixel 0 in the top row, either at the left or right, make su
 
 If pixel 0 is on the left edge of your display, then `MAT_LEFT` must be *define*d; otherwise, it should be *undef*ined.
 
-Finally, if your pixels zig-zag, that is, if each row goes the opposite direction of the previous row, then `MAT_ZIGZAG` should be *define*d; otherwise, it must be *undef*ined.
+If your pixels zig-zag horizontally, that is, if each row goes the opposite direction of the previous row, then `MAT_ZIGZAG` should be *define*d; otherwise, it must be *undef*ined.
+
+And lastly, if your pixels zig-zag vertically, with each column going the opposite direction of the previous column, then define `MAT_ZIGZAG_VERT`; otherwise, leave it *undef*ined.
 
 ### Your First Run
 
