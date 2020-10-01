@@ -32,6 +32,8 @@ As of this writing, the RAM requirement is basically a baseline of about 180 byt
 
 > Note: I've made attempts to reduce this requirement to three bytes per pixel (just what FastLED requires), but thus far my attempts have increased code complexity and reduced performance, and the exchange isn't worth it, IMO. RAM is cheap.
 
+Multi-panel displays are possible, but memory requirements increase accordingly: if you make a display of 4 matrix panels, your memory requirement is four times that of a single panel. See *Multiple Panel Displays* below.
+
 Another thing to be aware of is that the refresh rate will be limited by the size of the display and the type of LEDs. For NeoPixels, for example, there are strict timing requirements for data transmission and it takes about 30&micro;s per pixel. So 100 pixels takes the library 3ms to transmit. During this time, FastLED must disable interrupts, so anything else going on is going to be delayed accordingly. My 44x11 test matrix, with 484 pixels, takes 14.52ms to transmit to the display, and therefore the theoretical limit of the frame rate is around 68 frames per second. Fortunately, this is higher than what I feel looks good (for that matrix, something in the low 20s is most pleasing to my eye).
 
 I mentioned above that I've compiled the sketch with matrix sizes of 128x96, or over 12,000 LEDs. In practice, this would take almost 370ms (over 1/3 of a second) for FastLED to transmit to the array (in NeoPixel), and therefore the refresh rate would be too slow to look right. In practical terms, the refresh rate, as limited by transmit bandwidth, limits matrix size to something around 2048 NeoPixels. Other types of LEDs may do better, or worse.
@@ -53,15 +55,35 @@ If your display has pixel 0 in the top row, either at the left or right, make su
 
 If pixel 0 is on the left edge of your display, then `MAT_LEFT` must be *define*d; otherwise, it should be *undef*ined.
 
-If your pixels zig-zag horizontally, that is, if each row goes the opposite direction of the previous row, then `MAT_ZIGZAG` should be *define*d; otherwise, it must be *undef*ined.
+If your panel is column-major, that is, if pixel 1 is above or below pixel 0 rather than being to its left or right, define `MAT_COL_MAJOR`; otherwise, it must be *undef*ined.
 
-And lastly, if your pixels zig-zag vertically, with each column going the opposite direction of the previous column, then define `MAT_ZIGZAG_VERT`; otherwise, leave it *undef*ined.
+If your pixels zig-zag, that is, if each row goes the opposite direction of the previous row, then `MAT_ZIGZAG` should be *define*d; otherwise, it must be *undef*ined.
 
 ### Your First Run
 
 When you start up the code, if you've left the `DISPLAY_TEST` macro defined as it is by default, it will run a display test by first displaying white vertical bars sweeping from left to right, following by horizontal bars sweeping bottom to top. If these bars are broken or look odd, your display configuration is different from what you have set in the foregoing instructions. Recheck `MAT_TOP`, `MAT_LEFT`, and `MAT_ZIGZAG`. If you are unsure, read "Using PixelTest" below.
 
 If the display test displayed properly, you should now see the fire simulation. The default settings for fire "behavior" are set up for wider displays (32 pixel width or more). If your display is smaller, please read on, as you will likely need to tone down some of the flare settings so the display is less "busy" in the smaller matrix. Tuning is part of the fun.
+
+## Multiple Panel Displays
+
+Turn on multi-panel support by defining `MULTIPANEL`. Set the `PANELS_W` constant to the number of matrix panels in width, and `PANELS_H` to the number of matrix panels in height. All panels in the display must be identical in configuration/geometry.
+
+**CAUTION!** Multi-panel displays require *a lot* of memory. Make sure you choose a processor configuration that has adequate memory to the task. The total number of panels is limited by available memory and the matrix element size. Also note that the serial link bandwidth is limited, so as always, the more total pixels, the lower the maximum refresh rate.
+
+The following are the possible panel connection order (as an example) a 4x2 arrangement (so `PANELS_W` is 4, and `PANELS_H` is 2):
+
+```
+    +---+---+---+---+        +---+---+---+---+        +---+---+---+---+        +---+---+---+---+
+    | 4 | 5 | 6 | 7 |        | 7 | 6 | 5 | 4 |        | 0 | 1 | 2 | 3 |        | 0 | 1 | 2 | 3 |
+    +---+---+---+---+        +---+---+---+---+        +---+---+---+---+        +---+---+---+---+
+    | 0 | 1 | 2 | 3 |        | 0 | 1 | 2 | 3 |        | 4 | 5 | 6 | 7 |        | 7 | 6 | 5 | 4 |
+    +---+---+---+---+        +---+---+---+---+        +---+---+---+---+        +---+---+---+---+
+    #undef PANEL_TOP         #undef PANEL_TOP         #define PANEL_TOP        #define PANEL_TOP
+    #undef PANEL_ZIGZAG      #define PANEL_ZIGZAG     #undef PANEL_ZIGZAG      #define PANEL_ZIGZAG
+```
+
+Note that panel 0, the one connected directly to the processor, must be on the left edge in all cases.
 
 ## Advanced Configuration
 
@@ -131,7 +153,7 @@ If you are using a separate (non-USB) power supply, you may also want to turn on
 
 Download the configured PixelTest sketch to the micro. PixelTest will begin by blinking the first pixel, the "origin" pixel 0, for 15 seconds. If pixel 0 is anywhere in the *top* row of the matrix, you need to *define* `MAT_TOP` in MatrixFireFast (e.g. `#define MAT_TOP`). Otherwise, undefine it (e.g. `#undef MAT_TOP`). If pixel 0 is on the *left* edge of the matrix, you should *define* `MAT_LEFT`; otherwise, undefine it.
 
-PixelTest will next turn on (in various colors) the remaining pixels in the row. If the matrix displays a _horizontal line of pixels at the top or bottom edge_, proceed to the next step. Otherwise, you are most likely to see one or more vertical columns of pixels lit (and possibly a partial column). In this case, the display is arranged in column-major order. If that's the case, the easiest thing to do is to install the display rotated 90 degrees clockwise or counter-clockwise. Rotate the display, reconfigure the sketch (width and height are now swapped, so you need to swap the values for `MAT_W` and `MAT_H`), upload the sketch to the micro and re-run, and then set the preprocessor macros according to those results. Alternately, you could write a custom `pos()` function if rotating the display is not possible or practical.
+PixelTest will next turn on (in various colors) the remaining pixels in the row. If the matrix displays a _horizontal line of pixels at the top or bottom edge_, proceed to the next step. Otherwise, you are most likely to see one or more vertical columns of pixels lit (and possibly a partial column). In this case, the display is arranged in column-major order (you need to define `MAT_COL_MAJOR` in MatrixFireFast).
 
 PixelTest will then try to bounce a single pixel up and down in a single column. The "ball" should move straight up and down in the same column, without changing columns as it ascends and descends. If the pixel jumps from left to right while moving up and down, you should define `MAT_ZIGZAG` in MatrixFireFast; otherwise (it keeps a single straight line), undefine it.
 

@@ -1,7 +1,7 @@
 /**
  * MatrixFireFast - A fire simulation for NeoPixel (and other?) matrix
  * displays on Arduino (or ESP8266) using FastLED.
- * 
+ *
  * Author: Patrick Rigney (https://www.toggledbits.com/)
  * Copyright 2020 Patrick H. Rigney, All Rights Reserved.
  *
@@ -9,7 +9,7 @@
  * License information can be found at the above Github link.
  *
  * Please donate in support of my projects: https://www.toggledbits.com/donate
- * 
+ *
  * For configuration information and processor selection, please see
  * the README file at the above Github link.
  */
@@ -25,18 +25,33 @@
 #define MAT_TYPE NEOPIXEL   /* Matrix LED type; see FastLED docs for others */
 #define MAT_W   44          /* Size (columns) of entire matrix */
 #define MAT_H   11          /* and rows */
-#ifdef ESP8266
-#define MAT_PIN 0           /* Data for matrix on D3 on ESP8266 */
+#if defined(ESP32) || defined(ESP8266)
+#define MAT_PIN 13           /* Data for matrix on D3 on ESP8266 */
 #else
 #define MAT_PIN 6           /* Data for matrix on pin 6 for Arduino/other */
 #endif
+#undef  MAT_COL_MAJOR       /* define if matrix is column-major (that is pixel 1 is in the same column as pixel 0) */
 #define MAT_TOP             /* define if matrix 0,0 is in top row of display; undef if bottom */
 #define MAT_LEFT            /* define if matrix 0,0 is on left edge of display; undef if right */
-#define MAT_ZIGZAG          /* define if matrix rows zig-zag ---> <--- ---> <---; undef if scanning ---> ---> ---> */
-#define MAT_ZIGZAG_VERT     /* define if matrix cols zig-zag ↑↓↑↓↑↓ */
+#define MAT_ZIGZAG          /* define if matrix zig-zags ---> <--- ---> <---; undef if scanning ---> ---> ---> */
 
 #define BRIGHT 64           /* brightness; min 0 - 255 max -- high brightness requires a hefty power supply! Start low! */
 #define FPS 15              /* Refresh rate */
+
+/* MULTI-PANEL CONFIGURATION -- Do not change unless you connect multiple panels -- See README.md */
+/* WARNING -- THIS IS CURRENTLY UNTESTED -- DO NOT ENABLE UNLESS YOU FEEL LIKE BEING MY CRASH TEST MANNEQUIN */
+#undef  MULTIPANEL          /* define to enable multi-panel support */
+#define PANELS_W    1       /* Number of panels wide */
+#define PANELS_H    1       /* Number of panels tall */
+#undef  PANEL_TOP           /* define if first panel is upper-left */
+#undef  PANEL_ZIGZAG        /* define if panels zig-zag */
+/* --- DO NOT CHANGE THESE LINES --- */
+#ifndef MULTIPANEL
+#define PANELS_H 1
+#define PANELS_W 1
+#undef PANEL_TOP
+#undef PANEL_ZIGZAG
+#endif
 
 /* DEBUG CONFIGURATION */
 
@@ -44,13 +59,14 @@
 
 /* SECONDARY CONFIGURATION */
 
+
 /* Display size; can be smaller than matrix size, and if so, you can move the origin.
  * This allows you to have a small fire display on a large matrix sharing the display
  * with other stuff. See README at Github. */
-const uint8_t rows = MAT_H;
-const uint8_t cols = MAT_W;
-const uint8_t xorg = 0;
-const uint8_t yorg = 0;
+const uint16_t rows = MAT_H * PANELS_H;
+const uint16_t cols = MAT_W * PANELS_W;
+const uint16_t xorg = 0;
+const uint16_t yorg = 0;
 
 /* Flare constants */
 const uint8_t flarerows = 2;    /* number of rows (from bottom) allowed to flare */
@@ -75,9 +91,9 @@ const uint32_t colors[] = {
 const uint8_t NCOLORS = (sizeof(colors)/sizeof(colors[0]));
 
 uint8_t pix[rows][cols];
-CRGB matrix[MAT_H * MAT_W];
+CRGB matrix[MAT_H * PANELS_H * MAT_W * PANELS_W];
 uint8_t nflare = 0;
-uint16_t flare[maxflare];
+uint32_t flare[maxflare];
 
 /** pos - convert col/row to pixel position index. This takes into account
  *  the serpentine display, and mirroring the display so that 0,0 is the
@@ -90,34 +106,61 @@ uint16_t flare[maxflare];
 #ifndef MAT_TOP
 #define __MAT_BOTTOM
 #endif
-int pos( uint8_t col, uint8_t row ) {
-    col += xorg;
-    row += yorg;
+#if defined(MAT_COL_MAJOR)
+const uint8_t phy_h = MAT_W;
+const uint8_t phy_w = MAT_H;
+#else
+const uint8_t phy_h = MAT_H;
+const uint8_t phy_w = MAT_W;
+#endif
+#if defined(MULTIPANEL)
+uint16_t _pos( uint16_t col, uint16_t row ) {
+#else
+uint16_t pos( uint16_t col, uint16_t row ) {
+#endif
+#if defined(MAT_COL_MAJOR)
+    uint16_t phy_x = xorg + (uint16_t) row;
+    uint16_t phy_y = yorg + (uint16_t) col;
+#else
+    uint16_t phy_x = xorg + (uint16_t) col;
+    uint16_t phy_y = yorg + (uint16_t) row;
+#endif
 #if defined(MAT_LEFT) && defined(MAT_ZIGZAG)
-  if ( ( row & 1 ) == 1 ) {
-    /* Reverse serpentine row */
-    col = MAT_W - col - 1;
+  if ( ( phy_y & 1 ) == 1 ) {
+    phy_x = phy_w - phy_x - 1;
   }
 #elif defined(__MAT_RIGHT) && defined(MAT_ZIGZAG)
-  if ( ( row & 1 ) == 0 ) {
-    col = MAT_W - col - 1;
+  if ( ( phy_y & 1 ) == 0 ) {
+    phy_x = phy_w - phy_x - 1;
   }
 #elif defined(__MAT_RIGHT)
-  col = MAT_W - col - 1;
+  phy_x = phy_w - phy_x - 1;
 #endif
-#if defined(MAT_TOP) && defined(MAT_ZIGZAG_VERT)
-  if ( ( col & 1 ) == 0 ) {
-    row = MAT_H - row - 1;
-  }
-#elif defined(__MAT_BOTTOM) && defined(MAT_ZIGZAG_VERT)
-  if ( ( col & 1 ) == 1 ) {
-    row = MAT_H - row - 1;
-  }
+#if defined(MAT_TOP) and defined(MAT_COL_MAJOR)
+  phy_x = phy_w - phy_x - 1;
 #elif defined(MAT_TOP)
-  row = MAT_H - row - 1;
+  phy_y = phy_h - phy_y - 1;
 #endif
-  return (int) col + (int) row * (int) MAT_W;
+  return phy_x + phy_y * phy_w;
 }
+
+#if defined(MULTIPANEL)
+uint16_t pos(uint16_t col, uint16_t row) {
+#if defined(PANEL_TOP)
+    uint16_t panel_y = PANELS_H - ( row / MAT_H ) - 1;
+#else
+    uint16_t panel_y = row / MAT_H;
+#endif
+    uint16_t panel_x = col / MAT_W;
+#if defined(PANEL_ZIGZAG)
+    if ( ( panel_y & 1 ) == 1 ) {
+        panel_x = PANELS_W - panel_x - 1;
+    }
+#endif
+    uint16_t pindex = panel_x + panel_y * PANELS_W;
+    return MAT_W * MAT_H * pindex + _pos(col % MAT_W, row % MAT_H);
+}
+#endif
 
 uint32_t isqrt(uint32_t n) {
   if ( n < 2 ) return n;
@@ -145,10 +188,10 @@ void glow( int x, int y, int z ) {
 
 void newflare() {
   if ( nflare < maxflare && random(1,101) <= flarechance ) {
-    uint8_t x = random(0, cols);
-    uint16_t y = random(0, flarerows);
-    uint16_t z = NCOLORS - 1;
-    flare[nflare++] = (z<<12) | (y<<6) | (x&0x3f);
+    int x = random(0, cols);
+    int y = random(0, flarerows);
+    int z = NCOLORS - 1;
+    flare[nflare++] = (z<<16) | (y<<8) | (x&0xff);
     glow( x, y, z );
   }
 }
@@ -162,15 +205,15 @@ void newflare() {
  */
 unsigned long t = 0; /* keep time */
 void make_fire() {
-  uint8_t i, j;
+  uint16_t i, j;
   if ( t > millis() ) return;
   t = millis() + (1000 / FPS);
-  
+
   // First, move all existing heat points up the display and fade
   for ( i=rows-1; i>0; --i ) {
     for ( j=0; j<cols; ++j ) {
       uint8_t n = 0;
-      if ( pix[i-1][j] > 0 ) 
+      if ( pix[i-1][j] > 0 )
         n = pix[i-1][j] - 1;
       pix[i][j] = n;
     }
@@ -186,12 +229,12 @@ void make_fire() {
 
   // flare
   for ( i=0; i<nflare; ++i ) {
-    uint16_t x = flare[i] & 0x3f;
-    uint16_t y = (flare[i] >> 6) & 0x3f;
-    uint16_t z = (flare[i] >> 12) & 0x0f;
+    int x = flare[i] & 0xff;
+    int y = (flare[i] >> 8) & 0xff;
+    int z = (flare[i] >> 16) & 0xff;
     glow( x, y, z );
     if ( z > 1 ) {
-      flare[i] = (flare[i] & 0x0fff) | ((z-1)<<12);
+      flare[i] = (flare[i] & 0xffff) | ((z-1)<<16);
     } else {
       // This flare is out
       for ( int j=i+1; j<nflare; ++j ) {
@@ -201,7 +244,7 @@ void make_fire() {
     }
   }
   newflare();
-  
+
   // Set and draw
   for ( i=0; i<rows; ++i ) {
     for ( j=0; j<cols; ++j ) {
@@ -216,9 +259,9 @@ void setup() {
   FastLED.setBrightness(BRIGHT);
   FastLED.clear();
   FastLED.show();
-  
-  for ( uint8_t i=0; i<rows; ++i ) {
-    for ( uint8_t j=0; j<cols; ++j ) {
+
+  for ( uint16_t i=0; i<rows; ++i ) {
+    for ( uint16_t j=0; j<cols; ++j ) {
       if ( i == 0 ) pix[i][j] = NCOLORS - 1;
       else pix[i][j] = 0;
     }
@@ -227,35 +270,33 @@ void setup() {
 #ifdef SERIAL
     Serial.begin(115200); while (!Serial);
     Serial.print("MatrixFireFast v"); Serial.println(VERSION);
-    Serial.print("Brightness "); Serial.print(BRIGHT);
+    Serial.print("Pin "); Serial.print(MAT_PIN);
+    Serial.print(", brightness "); Serial.print(BRIGHT);
     Serial.print(", FPS "); Serial.println(FPS);
 #endif
 
 #ifdef DISPLAY_TEST
-  for ( uint8_t i=0; i<cols; ++i ) {
-    FastLED.clear();
-    for ( uint8_t j=0; j<rows; ++j ) {
-      matrix[pos(i,j)] = colors[NCOLORS-1];
-    }
+  FastLED.clear();
+  for ( uint16_t i=0; i<cols; ++i ) {
+    matrix[pos(i,0)] = colors[NCOLORS-1];
     FastLED.show();
     delay(1000/FPS);
+    matrix[pos(i,0)] = 0;
   }
-  for ( uint8_t i=0; i<rows; ++i ) {
-    FastLED.clear();
-    for ( uint8_t j=0; j<cols; ++j ) {
-      matrix[pos(j,i)] = colors[NCOLORS-1];
-    }
+  for ( uint16_t i=0; i<rows; ++i ) {
+    matrix[pos(0,i)] = colors[NCOLORS-1];
     FastLED.show();
     delay(1000/FPS);
+    matrix[pos(0,i)] = 0;
   }
   /** Show the color map briefly at the extents of the display. This "demo"
    *  is meant to help establish correct origin, extents, colors, and
    *  brightness. You can cut or comment this out if you don't need it;
    *  it's not important to functionality otherwise.
    */
-  uint8_t y = 0;
+  uint16_t y = 0;
   FastLED.clear();
-  for ( uint8_t i=NCOLORS-1; i>=0; --i ) {
+  for ( int i=NCOLORS-1; i>=0; --i ) {
     if ( y < rows ) {
       matrix[pos(0,y)] = colors[i];
       matrix[pos(cols-1,y++)] = colors[i];
@@ -265,6 +306,8 @@ void setup() {
   FastLED.show();
   delay(2000);
 #endif
+  FastLED.clear();
+  FastLED.show();
 }
 
 void loop() {
