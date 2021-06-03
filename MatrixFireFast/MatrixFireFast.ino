@@ -255,7 +255,7 @@ void make_fire() {
 }
 
 void setup() {
-  FastLED.addLeds<MAT_TYPE, MAT_PIN>(matrix, MAT_W * MAT_H);
+  FastLED.addLeds<MAT_TYPE, MAT_PIN>(matrix, (MAT_H * PANELS_H * MAT_W * PANELS_W));
   FastLED.setBrightness(BRIGHT);
   FastLED.clear();
   FastLED.show();
