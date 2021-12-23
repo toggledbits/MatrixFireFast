@@ -8,7 +8,7 @@ light:
     name: MatrixFireFast
     effects:
       - addressable_lambda:
-          name: Fire
+          name: MatrixFireFast
           update_interval: 70ms
           lambda: |-
             const bool colmajor = false;
