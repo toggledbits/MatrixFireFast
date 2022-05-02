@@ -38,6 +38,8 @@ Another thing to be aware of is that the refresh rate will be limited by the siz
 
 I mentioned above that I've compiled the sketch with matrix sizes of 128x96, or over 12,000 LEDs. In practice, this would take almost 370ms (over 1/3 of a second) for FastLED to transmit to the array (in NeoPixel), and therefore the refresh rate would be too slow to look right. In practical terms, the refresh rate, as limited by transmit bandwidth, limits matrix size to something around 2048 NeoPixels. Other types of LEDs may do better, or worse.
 
+A big "Thank You" to Tom De Backer (@tomdb-BE) for the ESPHome adaptation.
+
 ## Basic Configuration
 
 The most basic thing you need to do is configure the size of the display you are using, and what data pin is used to transmit the pixel stream to the display. If you do nothing else to the code when you first try it, you have to get these right. These are set near the stop of the code:
